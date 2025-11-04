@@ -71,10 +71,13 @@ export class StateMachine<S, P> {
 
   initial_time(): number | null {
     const post = this.room_posts.get(0);
-    if (!post) {
-      return null;
-    }
-    return post.server_time;
+    if (!post) return null;
+    // Use the same official time rule as the timeline, to avoid
+    // placing index 0 before the initial tick window.
+    const official_time = (post.client_time <= post.server_time - this.tolerance)
+      ? (post.server_time - this.tolerance)
+      : post.client_time;
+    return official_time;
   }
 
   initial_tick(): number | null {
