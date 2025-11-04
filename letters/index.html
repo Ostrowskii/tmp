@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Letters</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #fff;
+    }
+    canvas {
+      display: block;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <script type="module">
+    import { createGame } from "./letters.js";
+
+    // Setup canvas
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    // Make canvas fullscreen
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    // Get room and nickname from user
+    const room = prompt("Enter room name:");
+    if (!room) {
+      alert("Room name is required!");
+      throw new Error("Room name required");
+    }
+
+    const nick = prompt("Enter your nickname (single character):");
+    if (!nick || nick.length !== 1) {
+      alert("Nickname must be exactly one character!");
+      throw new Error("Nickname must be one character");
+    }
+
+    console.log("[GAME] Room:", room, "Nick:", nick);
+
+    // Create game instance
+    const game = createGame(room);
+
+    // Spawn player at random position
+    const spawnX = Math.random() * window.innerWidth;
+    const spawnY = Math.random() * window.innerHeight;
+
+    // Wait a bit for connection, then spawn
+    setTimeout(() => {
+      game.post({ $: "spawn", nick: nick, px: spawnX, py: spawnY });
+    }, 1000);
+
+    // Track key states
+    const keyStates = {
+      w: false,
+      a: false,
+      s: false,
+      d: false,
+    };
+
+    // Handle keyboard input
+    window.addEventListener("keydown", (e) => {
+      const key = e.key.toLowerCase();
+      if (key === "w" || key === "a" || key === "s" || key === "d") {
+        if (!keyStates[key]) {
+          keyStates[key] = true;
+          game.post({ $: "down", key: key, player: nick });
+        }
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      const key = e.key.toLowerCase();
+      if (key === "w" || key === "a" || key === "s" || key === "d") {
+        if (keyStates[key]) {
+          keyStates[key] = false;
+          game.post({ $: "up", key: key, player: nick });
+        }
+      }
+    });
+
+    // Render loop at 24 FPS
+    const FPS = 24;
+    const FRAME_TIME = 1000 / FPS;
+
+    let frameCount = 0;
+    let lastPerfLog = 0;
+    let perfSamples = [];
+
+    function render() {
+      const renderStart = performance.now();
+      frameCount++;
+
+      // Clear screen
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Get current game state
+      const computeStart = performance.now();
+      const currentTick = game.server_tick();
+      const initialTick = game.initial_tick();
+      const ticksToProcess = initialTick !== null ? currentTick - initialTick : 0;
+      const state = game.compute_current_state();
+      const computeTime = performance.now() - computeStart;
+
+      // Render each player
+      ctx.fillStyle = "#000";
+      ctx.font = "24px monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      for (const [char, player] of Object.entries(state)) {
+        const x = Math.floor(player.px);
+        const y = Math.floor(player.py);
+        ctx.fillText(char, x, y);
+      }
+
+      const renderTime = performance.now() - renderStart;
+      perfSamples.push({ compute: computeTime, render: renderTime, ticks: ticksToProcess });
+
+      // Log performance every 60 frames (every 2.5 seconds at 24 FPS)
+      if (frameCount - lastPerfLog >= 60) {
+        const avgCompute = perfSamples.reduce((sum, s) => sum + s.compute, 0) / perfSamples.length;
+        const avgRender = perfSamples.reduce((sum, s) => sum + s.render, 0) / perfSamples.length;
+        const avgTicks = perfSamples.reduce((sum, s) => sum + s.ticks, 0) / perfSamples.length;
+        console.log(`[PERF] Frame ${frameCount} | Players: ${Object.keys(state).length} | Avg compute: ${avgCompute.toFixed(2)}ms | Avg render: ${avgRender.toFixed(2)}ms | Avg ticks/frame: ${avgTicks.toFixed(1)}`);
+        lastPerfLog = frameCount;
+        perfSamples = [];
+      }
+    }
+
+    // Start render loop
+    console.log("[GAME] Starting render at 24 FPS");
+    setInterval(render, FRAME_TIME);
+  </script>
+</body>
+</html>

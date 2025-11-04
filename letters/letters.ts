@@ -1,0 +1,109 @@
+import { StateMachine } from "./state_machine.js";
+
+// Player type
+type Player = {
+  px: number;
+  py: number;
+  w: number;
+  a: number;
+  s: number;
+  d: number;
+};
+
+// Game state: map from character to player
+type GameState = {
+  [char: string]: Player;
+};
+
+// Post types
+type GamePost =
+  | { $: "spawn"; nick: string; px: number; py: number }
+  | { $: "down"; key: "w" | "a" | "s" | "d"; player: string }
+  | { $: "up"; key: "w" | "a" | "s" | "d"; player: string };
+
+// Game configuration
+const TICKS_PER_SECOND = 24; // ticks per second
+const TOLERANCE = 100; // milliseconds
+const PIXELS_PER_SECOND = 200;
+const PIXELS_PER_TICK = PIXELS_PER_SECOND / 24;
+
+// Initial state: empty map
+const initial_state: GameState = {};
+
+// on_tick: update player positions based on WASD state
+function on_tick(state: GameState): GameState {
+  const new_state: GameState = {};
+
+  for (const [char, player] of Object.entries(state)) {
+    new_state[char] = {
+      px: player.px + (player.d * PIXELS_PER_TICK) + (player.a * -PIXELS_PER_TICK),
+      py: player.py + (player.s * PIXELS_PER_TICK) + (player.w * -PIXELS_PER_TICK),
+      w: player.w,
+      a: player.a,
+      s: player.s,
+      d: player.d,
+    };
+  }
+
+  return new_state;
+}
+
+// on_post: handle player commands
+function on_post(post: GamePost, state: GameState): GameState {
+  if (post.$ === "spawn") {
+    // Add new player to the game
+    return {
+      ...state,
+      [post.nick]: {
+        px: post.px,
+        py: post.py,
+        w: 0,
+        a: 0,
+        s: 0,
+        d: 0,
+      },
+    };
+  } else if (post.$ === "down") {
+    // Set key state to 1
+    const player = state[post.player];
+    if (!player) {
+      return state; // Ignore posts for non-existent players
+    }
+    return {
+      ...state,
+      [post.player]: {
+        ...player,
+        [post.key]: 1,
+      },
+    };
+  } else if (post.$ === "up") {
+    // Set key state to 0
+    const player = state[post.player];
+    if (!player) {
+      return state; // Ignore posts for non-existent players
+    }
+    return {
+      ...state,
+      [post.player]: {
+        ...player,
+        [post.key]: 0,
+      },
+    };
+  }
+
+  return state;
+}
+
+// Create and export game function
+export function createGame(room: string) {
+  const sm = new StateMachine<GameState, GamePost>(
+    room,
+    initial_state,
+    on_tick,
+    on_post,
+    TICKS_PER_SECOND,
+    TOLERANCE
+  );
+
+  return sm;
+}

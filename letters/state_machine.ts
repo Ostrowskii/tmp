@@ -1,4 +1,4 @@
-import * as client from "./client.ts";
+import * as client from "./client_web.js";
 
 type Post<P> = {
   room: string;
@@ -131,12 +131,12 @@ export class StateMachine<S, P> {
     return state;
   }
 
-  // Post data to the room
+  // New method: post data to the room
   post(data: P): void {
     client.post(this.room, data);
   }
 
-  // Compute current state
+  // New method: compute current state
   compute_current_state(): S {
     return this.compute_state_at(this.server_tick());
   }
