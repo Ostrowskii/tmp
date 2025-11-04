@@ -1,3 +1,22 @@
+import { existsSync, readFileSync, writeFileSync } from "fs";
+
+// Kill previous server if exists
+const PID_FILE = ".serve.pid";
+if (existsSync(PID_FILE)) {
+  try {
+    const oldPid = parseInt(readFileSync(PID_FILE, "utf-8").trim());
+    process.kill(oldPid, "SIGTERM");
+    console.log(`Killed previous HTTP server process (PID: ${oldPid})`);
+    // Wait for port to be released
+    await Bun.sleep(100);
+  } catch (e) {
+    // Process doesn't exist, ignore
+  }
+}
+
+// Save current PID
+writeFileSync(PID_FILE, process.pid.toString());
+
 // Simple HTTP server for serving the letters game
 const server = Bun.serve({
   port: 3000,

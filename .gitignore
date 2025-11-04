@@ -28,3 +28,7 @@ pnpm-debug.log*
 # Database files
 db/
 letters/dist/
+
+# PID files
+.server.pid
+letters/.serve.pid
