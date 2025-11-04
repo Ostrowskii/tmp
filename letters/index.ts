@@ -53,11 +53,12 @@ function on_tick(state: GameState): GameState {
 function on_post(post: GamePost, state: GameState): GameState {
   switch (post.$) {
     case "spawn": {
+      // Pin spawn at fixed coordinates (200,200)
       return {
         ...state,
         [post.nick]: {
-          px: post.px,
-          py: post.py,
+          px: 200,
+          py: 200,
           w: 0,
           a: 0,
           s: 0,

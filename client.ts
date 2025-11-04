@@ -32,6 +32,28 @@ export function server_time(): number {
   return Math.floor(now() + time_sync.clock_offset);
 }
 
+// Ensure socket is open
+function ensure_open(): void {
+  if (ws.readyState !== WebSocket.OPEN) {
+    throw new Error("WebSocket not open");
+  }
+}
+
+// Unified send wrapper (exported for external users)
+export function send(obj: any): void {
+  ensure_open();
+  ws.send(JSON.stringify(obj));
+}
+
+// Register optional per-room handler without duplication
+function register_handler(room: string, handler?: MessageHandler): void {
+  if (!handler) return;
+  if (room_watchers.has(room)) {
+    throw new Error(`Handler already registered for room: ${room}`);
+  }
+  room_watchers.set(room, handler);
+}
+
 // Setup time sync
 ws.addEventListener("open", () => {
   console.log("[WS] Connected");
@@ -78,36 +100,22 @@ ws.addEventListener("message", (event) => {
 // API Functions
 
 export function post(room: string, data: any): void {
-  if (ws.readyState !== WebSocket.OPEN) throw new Error("ws not open in post()");
-  ws.send(JSON.stringify({$: "post", room, time: server_time(), data}));
+  send({$: "post", room, time: server_time(), data});
 }
 
 export function load(room: string, from: number = 0, handler?: MessageHandler): void {
-  if (handler) {
-    if (room_watchers.has(room)) {
-      throw new Error(`Handler already registered for room: ${room}`);
-    }
-    room_watchers.set(room, handler);
-  }
-  if (ws.readyState !== WebSocket.OPEN) throw new Error("ws not open in load()");
-  ws.send(JSON.stringify({$: "load", room, from}));
+  register_handler(room, handler);
+  send({$: "load", room, from});
 }
 
 export function watch(room: string, handler?: MessageHandler): void {
-  if (handler) {
-    if (room_watchers.has(room)) {
-      throw new Error(`Handler already registered for room: ${room}`);
-    }
-    room_watchers.set(room, handler);
-  }
-  if (ws.readyState !== WebSocket.OPEN) throw new Error("ws not open in watch()");
-  ws.send(JSON.stringify({$: "watch", room}));
+  register_handler(room, handler);
+  send({$: "watch", room});
 }
 
 export function unwatch(room: string): void {
   room_watchers.delete(room);
-  if (ws.readyState !== WebSocket.OPEN) throw new Error("ws not open in unwatch()");
-  ws.send(JSON.stringify({$: "unwatch", room}));
+  send({$: "unwatch", room});
 }
 
 export function close(): void {

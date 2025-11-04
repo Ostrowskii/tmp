@@ -62,10 +62,10 @@
 
     // Setup game only after first time sync
     on_sync(() => {
-      // Spawn player after sync
-      const spawnX = Math.random() * window.innerWidth;
-      const spawnY = Math.random() * window.innerHeight;
-      console.log(`[GAME] Synced; spawning '${nick}' at (${Math.floor(spawnX)},${Math.floor(spawnY)})`);
+      // Spawn player after sync (pinned at 200,200)
+      const spawnX = 200;
+      const spawnY = 200;
+      console.log(`[GAME] Synced; spawning '${nick}' at (${spawnX},${spawnY})`);
       game.post({ $: "spawn", nick: nick, px: spawnX, py: spawnY });
 
       // Handle keyboard input after sync
