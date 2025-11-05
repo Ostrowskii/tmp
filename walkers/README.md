@@ -11,7 +11,6 @@ walkers/
 ├── dist/             # Compiled JavaScript files (built automatically)
 │   ├── client.js
 │   ├── vibi.js
-│   ├── version.js
 │   └── index.js
 └── README.md         # This file
 ```

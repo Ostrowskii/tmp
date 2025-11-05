@@ -6,23 +6,11 @@ import { readFile } from "fs/promises";
 // Build walkers bundle on startup (idempotent)
 async function build_walkers() {
   try {
-    // Generate version label from commit count
-    let version = "V0";
-    try {
-      const rev = Bun.spawnSync({ cmd: ["git", "rev-list", "--count", "HEAD"] });
-      if (rev.success) {
-        const n = parseInt(new TextDecoder().decode(rev.stdout).trim() || "0", 10);
-        if (!Number.isNaN(n)) version = `V${n}`;
-      }
-    } catch {}
-    try { writeFileSync("walkers/version.ts", `export const VERSION_LABEL = "${version}";\n`); } catch {}
-
     const r1 = Bun.spawnSync({ cmd: ["bun", "build", "src/client.ts", "--outdir", "walkers/dist", "--target=browser", "--format=esm"] });
     const r2 = Bun.spawnSync({ cmd: ["bun", "build", "src/vibi.ts", "--outdir", "walkers/dist", "--target=browser", "--format=esm"] });
-    const r3 = Bun.spawnSync({ cmd: ["bun", "build", "walkers/version.ts", "--outdir", "walkers/dist", "--target=browser", "--format=esm"] });
-    const r4 = Bun.spawnSync({ cmd: ["bun", "build", "walkers/index.ts", "--outdir", "walkers/dist", "--target=browser", "--format=esm"] });
-    if (!r1.success || !r2.success || !r3.success || !r4.success) {
-      console.error("[BUILD] walkers build failed", { r1: r1.success, r2: r2.success, r3: r3.success, r4: r4.success });
+    const r3 = Bun.spawnSync({ cmd: ["bun", "build", "walkers/index.ts", "--outdir", "walkers/dist", "--target=browser", "--format=esm"] });
+    if (!r1.success || !r2.success || !r3.success) {
+      console.error("[BUILD] walkers build failed", { r1: r1.success, r2: r2.success, r3: r3.success });
     } else {
       console.log("[BUILD] walkers bundle ready");
     }
@@ -151,4 +139,3 @@ wss.on("connection", (ws) => {
 server.listen(8080, () => {
   console.log("Server running at http://localhost:8080 (HTTP + WebSocket)");
 });
-

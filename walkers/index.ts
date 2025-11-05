@@ -1,6 +1,6 @@
 import { Vibi } from "../src/vibi.ts";
-import { VERSION_LABEL } from "./version.js";
 import { on_sync, ping, gen_name } from "../src/client.ts";
+import pkg from "../package.json" assert { type: "json" };
 
 // Player type
 type Player = {
@@ -96,7 +96,7 @@ const smooth = (past: GameState, curr: GameState): GameState => {
 };
 
 const game: Vibi<GameState, GamePost> = create_game(room, smooth);
-document.title = `Walkers ${VERSION_LABEL}`;
+document.title = `Walkers ${pkg.version}`;
 
 const key_states: Record<string, boolean> = { w: false, a: false, s: false, d: false };
 
