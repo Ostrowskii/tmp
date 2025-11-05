@@ -102,8 +102,10 @@
     let lastPerfLog = 0;
     let perfSamples = [];
 
-    // How many ticks to render in the past for everyone else
-    const PAST_TICKS = 5; // ~200ms at 24 TPS
+    // Dynamic past ticks based on tolerance and current ping
+    const TICKS_PER_SECOND = 24;
+    const TICK_MS = 1000 / TICKS_PER_SECOND;
+    const TOLERANCE_MS = 300;
 
     function render() {
       const renderStart = performance.now();
@@ -116,7 +118,11 @@
       // Get current game state
       const computeStart = performance.now();
       const presentTick = game.server_tick();
-      const pastTick = Math.max(0, presentTick - PAST_TICKS);
+      const rtt = ping();
+      const tolTicks = Math.ceil(TOLERANCE_MS / TICK_MS);
+      const halfRttTicks = isFinite(rtt) ? Math.ceil((rtt / 2) / TICK_MS) : 0;
+      const pastTicks = Math.max(tolTicks, halfRttTicks + 1); // add 1 tick safety
+      const pastTick = Math.max(0, presentTick - pastTicks);
       const initialTick = game.initial_tick();
       const ticksToProcess = initialTick !== null ? pastTick - initialTick : 0;
       // Compute world at pastTick and self at presentTick
@@ -134,10 +140,10 @@
       try {
         const st = game.server_time();
         const tk = presentTick;
-        const rtt = ping();
         ctx.fillText(`time: ${st}`, 8, 6);
         ctx.fillText(`tick: ${tk}`, 8, 24);
-        if (isFinite(rtt)) ctx.fillText(`ping: ${Math.round(rtt)} ms`, 8, 42);
+        const prtt = ping();
+        if (isFinite(prtt)) ctx.fillText(`ping: ${Math.round(prtt)} ms`, 8, 42);
       } catch {}
 
       // Render each player
