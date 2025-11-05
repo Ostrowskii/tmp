@@ -32,6 +32,17 @@ const PIXELS_PER_TICK = PIXELS_PER_SECOND / TICKS_PER_SECOND;
 // Initial state: empty map
 const initial_state: GameState = {};
 
+// Small immutable helpers
+function assoc<T extends Record<string, any>>(obj: T, key: string, value: any): T {
+  return { ...(obj as any), [key]: value } as T;
+}
+
+function update_key<T extends Record<string, any>>(obj: T, key: string, fn: (v: any) => any): T {
+  const prev = (obj as any)[key];
+  if (prev === undefined) return obj;
+  return { ...(obj as any), [key]: fn(prev) } as T;
+}
+
 // on_tick: update player positions based on WASD state
 function on_tick(state: GameState): GameState {
   const new_state: GameState = {};
@@ -55,39 +66,13 @@ function on_post(post: GamePost, state: GameState): GameState {
   switch (post.$) {
     case "spawn": {
       // Pin spawn at fixed coordinates (200,200)
-      return {
-        ...state,
-        [post.nick]: {
-          px: 200,
-          py: 200,
-          w: 0,
-          a: 0,
-          s: 0,
-          d: 0,
-        },
-      };
+      return assoc(state, post.nick, { px: 200, py: 200, w: 0, a: 0, s: 0, d: 0 });
     }
     case "down": {
-      const player = state[post.player];
-      if (!player) return state;
-      return {
-        ...state,
-        [post.player]: {
-          ...player,
-          [post.key]: 1,
-        },
-      };
+      return update_key(state, post.player, (p: Player) => assoc(p, post.key, 1));
     }
     case "up": {
-      const player = state[post.player];
-      if (!player) return state;
-      return {
-        ...state,
-        [post.player]: {
-          ...player,
-          [post.key]: 0,
-        },
-      };
+      return update_key(state, post.player, (p: Player) => assoc(p, post.key, 0));
     }
   }
   return state;
