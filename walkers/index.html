@@ -126,16 +126,18 @@
       if (presentState[nick]) state[nick] = presentState[nick];
       const computeTime = performance.now() - computeStart;
 
-      // Render server time (top-left)
+      // Render overlay (top-left): time - tick - ping
       ctx.fillStyle = "#000";
       ctx.font = "14px monospace";
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       try {
         const st = game.server_time();
+        const tk = presentTick;
         const rtt = ping();
-        ctx.fillText(`server_time: ${st}`, 8, 6);
-        if (isFinite(rtt)) ctx.fillText(`ping: ${Math.round(rtt)} ms`, 8, 24);
+        ctx.fillText(`time: ${st}`, 8, 6);
+        ctx.fillText(`tick: ${tk}`, 8, 24);
+        if (isFinite(rtt)) ctx.fillText(`ping: ${Math.round(rtt)} ms`, 8, 42);
       } catch {}
 
       // Render each player

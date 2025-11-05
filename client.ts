@@ -102,8 +102,26 @@ ws.addEventListener("message", (event) => {
 
 // API Functions
 
-export function post(room: string, data: any): void {
-  send({$: "post", room, time: server_time(), data});
+// Generate 8-char name (48-bit) using base64url-like alphabet [_a-zA-Z0-9-]
+function gen_name(): string {
+  const alphabet = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-";
+  const bytes = new Uint8Array(8);
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 8; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  let s = "";
+  for (let i = 0; i < 8; i++) {
+    s += alphabet[bytes[i] % 64];
+  }
+  return s;
+}
+
+export function post(room: string, data: any): string {
+  const name = gen_name();
+  send({$: "post", room, time: server_time(), name, data});
+  return name;
 }
 
 export function load(room: string, from: number = 0, handler?: MessageHandler): void {

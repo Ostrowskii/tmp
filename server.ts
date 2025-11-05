@@ -86,6 +86,7 @@ wss.on("connection", (ws) => {
         const server_time = now();
         const client_time = Math.floor(message.time);
         const room        = message.room;
+        const name        = message.name; // 8-char id from client
         const data        = message.data;
         const path        = `./db/${room}.jsonl`;
 
@@ -97,14 +98,14 @@ wss.on("connection", (ws) => {
           index = lines.length;
         }
 
-        const file_line = JSON.stringify({server_time, client_time, data});
+        const file_line = JSON.stringify({server_time, client_time, name, data});
         appendFileSync(path, file_line + "\n");
         console.log("Post received:", {room, data});
 
         // Broadcast to all watchers
         const room_watchers = watchers.get(room);
         if (room_watchers) {
-          const info = {$: "info_post", room, index, server_time, client_time, data};
+          const info = {$: "info_post", room, index, server_time, client_time, name, data};
           const json = JSON.stringify(info);
           for (const watcher of room_watchers) {
             watcher.send(json);
@@ -127,8 +128,9 @@ wss.on("connection", (ws) => {
               const record      = JSON.parse(line);
               const server_time = record.server_time;
               const client_time = record.client_time;
+              const name        = record.name;
               const data        = record.data;
-              const message     = {$: "info_post", room, index, server_time, client_time, data};
+              const message     = {$: "info_post", room, index, server_time, client_time, name, data};
               ws.send(JSON.stringify(message));
             }
           }

@@ -5,6 +5,7 @@ type Post<P> = {
   index: number;
   server_time: number;
   client_time: number;
+  name?: string; // unique id for dedup/reindex (optional for legacy)
   data: P;
 };
 
@@ -50,17 +51,53 @@ export class StateMachine<S, P> {
       console.log(`[SM] synced; watching+loading room=${this.room}`);
       // Watch the room with callback
       client.watch(this.room, (post) => {
-        // Strategic debug: log post summary with effective tick
-        const ot = this.official_time(post);
-        const tick = this.time_to_tick(ot);
-        const kind = (post as any)?.data?.$ ?? "?";
-        console.log(`[SM] recv idx=${post.index} kind=${kind} st=${post.server_time} ct=${post.client_time} -> tick=${tick}`);
-        this.room_posts.set(post.index, post);
+        this.accept_post(post);
       });
 
       // Load all existing posts
       client.load(this.room, 0);
     });
+  }
+
+  private find_index_by_name(name: string): number | null {
+    for (const [idx, p] of this.room_posts.entries()) {
+      if (p.name && p.name === name) return idx;
+    }
+    return null;
+  }
+
+  private insert_or_shift(targetIndex: number, post: Post<P>): void {
+    let idx = targetIndex;
+    let moving: Post<P> | null = post;
+    while (moving) {
+      const at = this.room_posts.get(idx);
+      // place moving at idx
+      const placed = { ...moving, index: idx } as Post<P>;
+      this.room_posts.set(idx, placed);
+      if (!at) break;
+      if (at.name && moving.name && at.name === moving.name) {
+        // same logical post; updated in place
+        break;
+      }
+      // shift the collided post forward
+      moving = at;
+      idx = idx + 1;
+    }
+  }
+
+  // Accept an incoming official post, handling collisions and dedup by name
+  private accept_post(post: Post<P>): void {
+    const n = post.name;
+    if (n) {
+      const prevIdx = this.find_index_by_name(n);
+      if (prevIdx !== null) {
+        // Remove previous predicted/duplicate and insert at official index
+        this.room_posts.delete(prevIdx);
+        this.insert_or_shift(post.index, post);
+        return;
+      }
+    }
+    this.insert_or_shift(post.index, post);
   }
 
   time_to_tick(server_time: number): number {
@@ -142,8 +179,8 @@ export class StateMachine<S, P> {
 
   // Post data to the room
   post(data: P): void {
-    // Send to server
-    client.post(this.room, data);
+    // Send to server and get generated name
+    const name = client.post(this.room, data);
     // Also include locally at the last known index for instant feedback
     const keys = Array.from(this.room_posts.keys());
     const next_index = keys.length ? Math.max(...keys) + 1 : 0;
@@ -153,9 +190,10 @@ export class StateMachine<S, P> {
       index: next_index,
       server_time: t,
       client_time: t,
+      name,
       data,
     };
-    this.room_posts.set(next_index, localPost);
+    this.insert_or_shift(next_index, localPost);
   }
 
   // Compute current state
